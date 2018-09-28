@@ -1,0 +1,16 @@
+---
+# tasks file for ravello-provision-app
+#
+- name: create work directory
+  file:
+    path: "{{ workdir_path }}"
+    state: directory
+    recurse: yes
+
+- name: Generate ssh keys for env access
+  include_tasks: "./ssh_env_keygen.yml"
+
+- name: provision application
+  include_tasks: "./create-template.yml"
+  when: blueprint_id is not defined
+

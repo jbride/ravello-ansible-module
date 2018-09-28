@@ -1,0 +1,23 @@
+---
+
+- set_fact:
+    instances: "{{ instances | map('combine', {'public_key' : env_public_key}) | list }}"
+  when: (instances.public_key is not defined) and use_cloud_template_module
+
+- set_fact:
+    instances: "{{ instances | map('combine', {'private_key_path' : ssh_key_path}) | list }}"
+  when: (instances.private_key_path is not defined) and use_cloud_template_module
+
+- name: Create ravello cloud jinja template from vm instance definitions
+  ravello_cloud_template:
+    path: "{{ template_in_path }}"
+    instances: "{{ instances }}"
+    subnets: "{{ subnets }}"
+    default_image: "{{ default_image }}"
+  when: use_cloud_template_module
+
+- name: Expand jinja template into finalized ravello template
+  template:
+    src: "{{ template_in_path }}"
+    dest: "{{ template_out_path }}"
+  when: use_jinja_cloud_template

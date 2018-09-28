@@ -2,3 +2,5 @@
 */workdir/*
 workdir/*
 *.retry
+main.yml
+app-inventory

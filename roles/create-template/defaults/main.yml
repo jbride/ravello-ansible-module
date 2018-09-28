@@ -1,0 +1,28 @@
+---
+# defaults file for ravello-provision-app
+application_name: my.ravello.app
+workdir_path: "{{ playbook_dir }}/workdir/"
+template_name: "{{ application_name }}.template"
+template_in_path: "{{ workdir_path }}/{{ template_name }}.j2"
+template_out_path: "{{ workdir_path }}/{{ template_name }}"
+ssh_key_path: "{{ workdir_path }}/{{ application_name }}.id_rsa"
+remote_user: cloud-user
+ssh_password_auth: False
+ravello_cost_bucket: Default
+publish_optimization: cost
+publish_region: default
+publish_cloud: default
+wait_timeout: 1800
+env_expire: 120
+use_cloud_template_module: True
+use_jinja_cloud_template: True
+
+default_image: GENERAL-rhel-guest-image-7.3-35.x86_64
+
+instances:
+  - name: bastion
+    services:
+      - protocol: ssh
+        port: 22
+
+subnets: null

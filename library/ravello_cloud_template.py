@@ -25,6 +25,9 @@ options:
     default_image:
       description:
         - boot image to assign to VMs when no local image definition is found
+    base_vm:
+      description:
+        - Base VM name, you should leave this set to Empty unless you want all your VMs based off another VM image in the library
 '''
 
 
@@ -137,7 +140,7 @@ instances:
     # Enable Baremetal
     prefer_physical: False
     # Boot image must be present on account
-    boot_image: GENERAL-rhel-guest-image-7.3-35.x86_64
+    boot_image: GENERAL-rhel-server-7.5-update-4-x86_64-img
     # hard drives
     disks:
       - name: vol
@@ -332,12 +335,15 @@ class Vm:
         self.template_vars = from_kwargs(kwargs, 'template_vars', {})
         self.groups = from_kwargs(kwargs, 'groups', None)
         self.remote_user = from_kwargs(kwargs, 'remote_user', 'cloud-user')
+        self.remote_user_password = from_kwargs(kwargs, 'remote_user_password', None)
         self.allow_nested= from_kwargs(kwargs, 'allow_nested', False)
         self.prefer_physical = from_kwargs(kwargs, 'prefer_physical', False)
         self.private_key_path = from_kwargs(kwargs, 'private_key_path', 
                             Exception("private_key_path required"))
         self.boot_disk_image = from_kwargs(kwargs, 
                 'boot_image', default_image.boot_image)
+        self.base_vm = from_kwargs(kwargs, 
+                'base_vm', base_vm.base_vm)
          
         if len(disks) == 0:
             raise Exception("There must be at least one disk")
@@ -386,8 +392,13 @@ class Vm:
         self.network_devices.append(nd)
 
     def to_yaml(self):
+        if self.remote_user_password != None:
+          pwauth = "true"
+        else:
+          pwauth = "false"
         vm_yaml = {
           'name' : self.name,
+          'baseVM' : self.base_vm,
           'tag' : self.tag,
           'allowNested': self.allow_nested,
           'preferPhysicalHost' : self.prefer_physical,
@@ -404,16 +415,23 @@ class Vm:
           'suppliedServices' : [sv.to_yaml_dict() for i, sv in enumerate(self.services)],
           'networkConnections' : [nd.to_yaml_dict(i) for i, nd in enumerate(self.network_devices)],
           'userData' : """\
-  #cloud-config
-  ssh_pwauth: False
-  disable_root: False
-  users:
-    - name: """ + self.remote_user + """
-      sudo: ALL=(ALL) NOPASSWD:ALL
-      lock_passwd: False
-      ssh-authorized-keys:
-      - """ + self.public_key
+#cloud-config
+ssh_pwauth: """ + pwauth + """
+disable_root: False
+users:
+  - name: """ + self.remote_user + """
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: False
+    ssh-authorized-keys:
+    - """ + self.public_key
           }
+        if self.remote_user_password != None:
+          vm_yaml['userData'] += """
+chpasswd:
+  list: |
+    """ + self.remote_user + """:""" + self.remote_user_password + """
+  expire: False
+"""
         if self.keypair_id != None:
          vm_yaml['keypairId'] = int(self.keypair_id)
         if self.keypair_name != None:
@@ -470,9 +488,14 @@ def main():
 
 class SingletonDefaultImage:
     def __init__(self):
-        self.boot_image =  "GENERAL-rhel-guest-image-7.3-35.x86_64"
+        self.boot_image = "GENERAL-rhel-server-7.5-update-4-x86_64-img"
+
+class SingletonBaseVM:
+    def __init__(self):
+        self.base_vm = "Empty"
 
 default_image = SingletonDefaultImage()
+base_vm = SingletonBaseVM()
     
 main()
 
