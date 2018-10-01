@@ -21,17 +21,17 @@
     activationkey: "{{satellite_activationkey}}"
     org_id: "{{satellite_org}}"
 
-- name: Enable Repositories
-  rhsm_repository:
-    name: rhel-7-server-satellite-tools-6.2-rpms
-    state: enabled
+#- name: Enable Repositories
+#  rhsm_repository:
+#    name: rhel-7-server-satellite-tools-6.3-rpms
+#    state: enabled
 
-- name: Install Katello Agent
-  yum: pkg=katello-agent state=latest
-- name: Enable Katello Agent
-  service: name=goferd enabled=yes
-- name: Start Katello Agent
-  service: name=goferd state=started
+#- name: Install Katello Agent
+#  yum: pkg=katello-agent state=latest
+#- name: Enable Katello Agent
+#  service: name=goferd enabled=yes
+#- name: Start Katello Agent
+#  service: name=goferd state=started
 
 - name: enable repos for rhel
   rhsm_repository:

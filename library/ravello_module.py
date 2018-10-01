@@ -42,7 +42,7 @@ from ansible.module_utils.ravello_utils import *
 
 DOCUMENTATION = '''
 ---
-module: ravello_app
+module: ravello_module
 short_description: Create/delete/start/stop an application in ravellosystems
 description:
      - Create/delete/start/stop an application in ravellosystems and wait for it (optionally) to be 'running'
@@ -64,7 +64,7 @@ options:
   	description:
      - Supplied Service name for list state 
     default: ssh
-  name:
+  app_name:
     description:
      - application name
   description:
@@ -104,7 +104,7 @@ options:
      - Description of new blueprint 
   app_template:
     description:
-     - Path to a YML file that defines an application infrastructure then creates a blueprint for further processing with follow-on playbooks.  Must use state=design
+     - Path to a YML file that defines an application infrastructure then publishes it for further processing with follow-on playbooks.  Must use state=design
   cost_bucket:
     description:
      - Cost bucket to assign to the app.  Defaults to first available cost bucket on account.
@@ -113,52 +113,65 @@ options:
 EXAMPLES = '''
 # Create app, based on blueprint, start it and wait for started
 - local_action:
-    module: ravello_app
+    module: ravello_module
     username: user@ravello.com
     password: password
-    name: 'my-application-name'
+    app_name: 'my-application-name'
     description: 'app desc'
     blueprint_id: '2452'
     wait: True
     wait_timeout: 600
     state: present
+
 # Create app, based on blueprint
 - local_action:
-    module: ravello_app
+    module: ravello_module
     username: user@ravello.com
     password: password
-    name: 'my-application-name'
+    app_name: 'my-application-name'
     description: 'app desc'
     publish_optimization: performance
     cloud:AMAZON
     region: Oregon
     state: present
+
 # List application example
 - local_action:
-    module: ravello_app
-    name: 'my-application-name'
+    module: ravello_module
+    app_name: 'my-application-name'
     service_name: 'ssh'
     state: list
+
 # Delete application example
 - local_action:
-    module: ravello_app
-    name: 'my-application-name'
+    module: ravello_module
+    app_name: 'my-application-name'
     state: absent
+
 # Create blueprint from existing app
 - local_action:
-    module: ravello_app
-    name: 'my-application-name'
+    module: ravello_module
+    app_name: 'my-application-name'
     blueprint_name: 'my-application-bp'
     blueprint_description: 'Blueprint of app xyz'
     state: blueprint
+
 # Create blueprint based on app_template.yml
 - local_action:
-    module: ravello_app
-    name: 'my-new-baseline'
+    module: ravello_module
+    # Base disk image to use for all VMs, must be already saved with this exact name in the Disk Image Library.  For best results it should be cloud-init ready.
+    default_image: 'GENERAL-rhel-server-7.5-update-4-x86_64-img'
+    app_name: 'my-new-baseline'
     description: 'My new baseline'
     app_template: 'app_template.yml'
+    wait_timeout: 600
+    # 5 Hours runtime
+    application_ttl: 300
+    cost_bucket: 'default'
+    publish_optimization: performance
+    region: 'us-east-5'
+    cloud: 'default'
     state: design
-  register: design_results
 '''
 
 import os
@@ -330,7 +343,7 @@ def main():
         module.fail_json(msg = 'ERROR: Failed to authenticate to Ravello using Ravello SDK credentials cache %s' % e,stdout='%s' % log_contents)
     state_arg = module.params.get('state')
     if state_arg == 'design':
-      create_blueprint_from_template(client, module)
+      create_app_from_template(client, module)
     elif state_arg == 'present':
       create_app_and_publish(client, module)
     elif state_arg == 'absent':
@@ -476,20 +489,13 @@ def action_on_blueprint(module, client, runner_func):
         module.fail_json(msg = '%s' % e,stdout='%s' % log_contents)        
 
 
-def create_blueprint_from_template(client, module):
+def create_app_from_template(client, module):
     app_name = module.params.get("app_name")
     # Assert app does not exist in ravello
-    
     cap = client.get_applications({'name': app_name})
     if cap:
       module.fail_json(msg='ERROR: Application %s already exists!' % \
               app_name, changed=False)
-    # Assert blueprint does not exist in ravello
-    blueprint_name = app_name + "-bp"
-    bp = client.get_blueprints({'name': blueprint_name})
-    if bp:
-      module.fail_json(msg='ERROR: Blueprint %s already exists!' % \
-              blueprint_name, changed=False)
     app_description = module.params.get("description")
     # Open local app template
     if not module.params.get("app_template"):
@@ -504,7 +510,8 @@ def create_blueprint_from_template(client, module):
     app_request = {}
     # Create random name extension token for app
     rand_str = lambda n: ''.join([random.choice(string.ascii_lowercase) for i in range(n)])
-    app_request['name'] = app_name + "-" + rand_str(10)
+    #app_request['name'] = app_name + "-" + rand_str(10)
+    app_request['name'] = app_name
     if client.get_applications({'name': app_request ['name'] }):
       module.fail_json(msg='ERROR: Temporary application build %s already exists!' % \
               app_name, changed=False)
@@ -515,7 +522,6 @@ def create_blueprint_from_template(client, module):
     # Check template is valid
     for vm in read_app['vms']:
       assert_vm_valid(client, module, vm)
-
     try:
         created_app = client.create_application(app_request)
     except Exception as e:
@@ -523,9 +529,7 @@ def create_blueprint_from_template(client, module):
         log_capture_string.close()
         module.fail_json(msg = '%s' % e,stdout='%s' % log_contents, 
                 jsonout='%s' % app_request)
-
     appID = created_app['id']
-
     updated_vms = {}
     for vm in read_app['vms']:
       vm['usingNewNetwork'] = True
@@ -541,9 +545,9 @@ def create_blueprint_from_template(client, module):
         if vid not in updated_vms:
           updated_vms[vid] = True
           updated_app['design']['vms'][ind].update(vm)
+          client.update_application(updated_app)
         ind = ind + 1
-      app_request = client.update_application(updated_app)
-
+    app_request = client.get_application(appID, aspect='design')
     # Generate subnets if they are defined in the template
     # Otherwise generate subnets compatible with defined VM IPs 
     delete_autogenerated_subnet(client, module, appID)
@@ -561,26 +565,37 @@ def create_blueprint_from_template(client, module):
     else:
         detect_ips_and_and_create_compatible_subnets(client, module, appID, app_request)
     # Get the ravello-assigned internal luids to fix assigned IPs and services
-    update_app_with_internal_luids(client, module, app_request, appID)
-
-    blueprint_dict = {
-            "applicationId":appID, 
-            "blueprintName":blueprint_name, 
-            "offline": False, 
-            "description":app_description 
-            }
-    try:
-    # create bp from tmp-app and delete tmp-app
-        blueprint_id= \
-          ((client.create_blueprint(blueprint_dict))['_href'].split('/'))[2]
-        client.delete_application(appID)
-        module.exit_json(changed=True, app_name='%s' % app_name, 
-                blueprint_name='%s' % blueprint_name, 
-                blueprint_id='%s' % blueprint_id)
-    except Exception as e:
-        log_contents = log_capture_string.getvalue()
-        log_capture_string.close()
-        module.fail_json(msg = '%s' % e,stdout='%s' % log_contents)
+    update_app_with_internal_luids(client, module, read_app, appID)
+    if 'performance' == module.params.get("publish_optimization"):
+        if not module.params.get("cloud"):
+            module.fail_json(msg=\
+                    'Must supply a cloud when publish optimization is performance', 
+                    changed=False)
+        if not module.params.get("region"):
+            module.fail_json(msg=\
+                    'Must supply a region when publish optimization is performance', 
+                    changed=False)
+    req = {}
+    if 'performance' == module.params.get("publish_optimization"):
+        req = {
+                'preferredRegion': module.params.get("region"), 
+                'optimizationLevel': 'PERFORMANCE_OPTIMIZED'
+                }
+    ttl=module.params.get("application_ttl")
+    if ttl != -1:
+        ttl =ttl * 60
+        exp_req = {'expirationFromNowSeconds': ttl}
+        client.set_application_expiration(appID,exp_req)
+    client.publish_application(appID, req)
+    set_cost_bucket(appID, 'application', 
+            module.params.get('cost_bucket'), client)
+    _wait_for_state(client,'STARTED',module)
+    log_contents = log_capture_string.getvalue()
+    log_capture_string.close()
+    module.exit_json(changed=True, 
+            app_name='%s' % module.params.get("app_name"),
+            stdout='%s' % log_contents, 
+            app_id='%s' % appID)
 
 def create_app_and_publish(client, module):
     app_name = module.params.get("app_name")
@@ -977,7 +992,8 @@ def update_app_with_internal_luids(client, module, app_request, appID):
     for dhcp in created_app['design']['network']['services']['dhcpServers']:
         if 'reservedIpEntries' not in dhcp:
             dhcp['reservedIpEntries'] = []
-    for vm in app_request['design']['vms']:
+    #for vm in app_request['design']['vms']:
+    for vm in app_request['vms']:
         hostname = vm['hostnames'][0]
         hostname_ip_mapping[hostname] = {}
         for nic in vm['networkConnections']:
@@ -1030,7 +1046,8 @@ def update_app_with_internal_luids(client, module, app_request, appID):
         if 'suppliedServices' in vm:
             for j, svc in enumerate(vm ['suppliedServices']):
                 old_vm = list(filter(lambda v: v['hostnames'] == vm['hostnames'], 
-                                 app_request['design']['vms']))[0]
+                                 app_request['vms']))[0]
+                                 #app_request['design']['vms']))[0]
                 if check_item_exists(old_vm, 'suppliedServices.' + str(j)):
                     service_req = ravello_template_get(old_vm['suppliedServices'], str(j))
                     

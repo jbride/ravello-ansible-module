@@ -22,36 +22,16 @@
     dest: "{{ template_out_path }}"
   when: use_jinja_cloud_template
 
-- name: "build staging app based on {{ app_template }}"
-  local_action:
-    module: ravello_module
-    app_name: "{{ application_name }}-tmp"
-    description: "{{ application_name }}"
-    app_template: "{{ template_out_path }}"
-    state: design
-  register: design_results
-
-- name: publish application and wait for start
+- name: "build and publish staging app based on {{ app_template }}"
   local_action:
     module: ravello_module
     app_name: "{{ application_name }}"
     description: "{{ application_name }}"
-    state: present
-    blueprint_id: "{{ design_results.blueprint_id }}"
+    app_template: "{{ template_out_path }}"
     wait_timeout: "{{ wait_timeout }}"
     application_ttl: "{{ env_expire }}"
     cost_bucket: "{{ ravello_cost_bucket }}"
     publish_optimization: "{{ publish_optimization }}"
     region: "{{ publish_region }}"
     cloud: "{{ publish_cloud }}"
-  register: app_results
-
-- name: delete blueprint used to create application
-  local_action:
-    blueprint_name: "{{ design_results.app_name + '-bp' }}"
-    blueprint_id: "{{ design_results.blueprint_id }}"
-    app_name: "{{ app_results.app_name }}"
-    module: ravello_module
-    state: blueprint_delete
-  register: bp_delete_results
-
+    state: design

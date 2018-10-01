@@ -22,7 +22,7 @@ From the top-level directory of this repository, execute:
 
 A useable virtual disk image of Red Hat Enterprise Linux in your Ravello 
 disk images library.  We will use an image called
-`rhel-guest-image-7.3-35.x86_64`.
+`GENERAL-rhel-server-7.5-update-4-x86_64-img`.
 
 == Set Your Current Working Directory
 
