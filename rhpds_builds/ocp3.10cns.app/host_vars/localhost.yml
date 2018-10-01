@@ -1,0 +1,144 @@
+# instances.yml
+
+instances:
+  - name: workstation
+    hostname: [workstation-REPL.rhpds.opentlc.com, bastion.example.com]
+    prefer_physical: true
+    allow_nested: false
+    cpus: 1
+    ram: 2
+    disks:
+      - size: 10
+    nics:
+      - name: eth0
+        ip: 192.168.0.5
+        mac: 2c:ab:cd:ef:00:05
+    services:
+        - protocol: SSH
+          port: 22
+
+  - name: master00
+    hostname: [master00.example.com, master00-REPL.rhpds.opentlc.com]
+    proxy: workstation
+    groups: 
+      - ocp_masters
+    prefer_physical: true
+    allow_nested: false
+    cpus: 4
+    ram: 32
+    disks:
+      - name: os
+        size: 50
+    nics:
+      - name: eth0
+        ip: 192.168.0.10
+        mac: 2c:ab:cd:ef:00:10
+    services:
+      - name: http
+        protocol: HTTP
+        port: 80
+      - name: https
+        protocol: HTTPS
+        port: 443
+
+  - name: infranode00
+    hostname: [infranode00.example.com, infranode00-REPL.rhpds.opentlc.com]
+    proxy: workstation
+    groups: 
+      - ocp_infra_nodes
+    prefer_physical: true
+    allow_nested: false
+    cpus: 4
+    ram: 16
+    disks:
+      - name: os
+        size: 20
+    nics:
+      - name: eth0
+        ip: 192.168.0.11
+        mac: 2c:ab:cd:ef:00:11
+    services:
+      - name: http
+        protocol: HTTP
+        port: 80
+      - name: https
+        protocol: HTTPS
+        port: 443
+
+  - name: node00
+    hostname: node00.example.com
+    prefer_physical: true
+    allow_nested: false
+    proxy: workstation
+    groups: 
+      - ocp_nodes
+    cpus: 4
+    ram: 16
+    disks:
+      - name: os
+        size: 20
+      - name: gluster_pv1
+        size: 10
+      - name: gluster_pv2
+        size: 10
+      - name: gluster_reg1
+        size: 20
+      - name: gluster_reg2
+        size: 20
+    nics:
+      - name: eth0
+        ip: 192.168.0.12
+        mac: 2c:ab:cd:ef:00:12
+
+  - name: node01
+    hostname: node01.example.com
+    prefer_physical: true
+    allow_nested: false
+    proxy: workstation
+    groups: 
+      - ocp_nodes
+    cpus: 4
+    ram: 16
+    disks:
+      - name: os
+        size: 20
+      - name: gluster_pv1
+        size: 10
+      - name: gluster_pv2
+        size: 10
+      - name: gluster_reg1
+        size: 20
+      - name: gluster_reg2
+        size: 20
+    nics:
+      - name: eth0
+        ip: 192.168.0.13
+        mac: 2c:ab:cd:ef:00:13
+
+  - name: node02
+    hostname: node02.example.com
+    prefer_physical: true
+    allow_nested: false
+    proxy: workstation
+    groups: 
+      - ocp_nodes
+    cpus: 4
+    ram: 16
+    disks:
+      - name: os
+        size: 20
+      - name: gluster_pv1
+        size: 10
+      - name: gluster_pv2
+        size: 10
+      - name: gluster_reg1
+        size: 20
+      - name: gluster_reg2
+        size: 20
+    nics:
+      - name: eth0
+        ip: 192.168.0.14
+        mac: 2c:ab:cd:ef:00:14
+
+subnets:
+  - "192.168.0.0/24"

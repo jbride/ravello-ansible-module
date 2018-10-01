@@ -1,0 +1,61 @@
+[OSEv3:children]
+masters
+nodes
+etcd
+glusterfs
+glusterfs_registry
+
+[masters]
+master00.example.com
+
+[etcd]
+master00.example.com
+
+[glusterfs]
+node00.example.com glusterfs_ip=192.168.0.12 glusterfs_devices='[ "/dev/vdb", "/dev/vdc" ]'
+node01.example.com glusterfs_ip=192.168.0.13 glusterfs_devices='[ "/dev/vdb", "/dev/vdc" ]'
+node02.example.com glusterfs_ip=192.168.0.14 glusterfs_devices='[ "/dev/vdb", "/dev/vdc" ]'
+
+[glusterfs_registry]
+node00.example.com glusterfs_ip=192.168.0.12 glusterfs_devices='[ "/dev/vdd", "/dev/vde" ]'
+node01.example.com glusterfs_ip=192.168.0.13 glusterfs_devices='[ "/dev/vdd", "/dev/vde" ]'
+node02.example.com glusterfs_ip=192.168.0.14 glusterfs_devices='[ "/dev/vdd", "/dev/vde" ]'
+
+[nodes]
+master00.example.com openshift_public_hostname=master00.example.com openshift_hostname=master00.example.com openshift_node_group_name='node-config-master'
+infranode00.example.com openshift_node_group_name='node-config-infra'
+node00.example.com openshift_node_group_name='node-config-compute'
+node01.example.com openshift_node_group_name='node-config-compute'
+node02.example.com openshift_node_group_name='node-config-compute'
+
+[all:vars]
+ansible_ssh_private_key_file=/root/.ssh/id_rsa
+
+[OSEv3:vars]
+os_firewall_use_firewalld=True
+
+openshift_master_identity_providers=[{'name': 'htpasswd_auth', 'login': 'true', 'challenge': 'true', 'kind': 'HTPasswdPasswordIdentityProvider',}]
+openshift_master_htpasswd_file=/etc/origin/master/htpasswd
+openshift_master_manage_htpasswd=False
+
+openshift_deployment_type=openshift-enterprise
+openshift_master_api_port=443
+openshift_master_console_port=443
+
+openshift_metrics_install_metrics=true
+openshift_metrics_cassandra_storage_type=dynamic
+
+openshift_logging_install_logging=true
+openshift_logging_es_pvc_dynamic=true
+
+openshift_storage_glusterfs_namespace=app-storage
+openshift_storage_glusterfs_storageclass=true
+openshift_storage_glusterfs_storageclass_default=false
+openshift_storage_glusterfs_block_deploy=true
+openshift_storage_glusterfs_block_host_vol_size=100
+openshift_storage_glusterfs_block_storageclass=true
+openshift_storage_glusterfs_block_storageclass_default=false
+
+openshift_hosted_registry_storage_kind=glusterfs
+openshift_hosted_registry_storage_volume_size=5Gi
+openshift_hosted_registry_selector='node-role.kubernetes.io/infra=true'

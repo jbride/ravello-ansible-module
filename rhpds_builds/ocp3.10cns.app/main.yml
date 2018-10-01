@@ -1,0 +1,255 @@
+---
+
+- name: provision baseline ravello app from template
+  tags:
+    - provision
+  hosts: localhost
+  vars_files:
+    # for setting root and user passwords
+    - workdir/secrets.yml
+  vars:
+    # This variable is used by the ravello-provision-app role
+    # to determine the application name
+    - application_name: "{{ application_name }}"
+    # For baremetal
+    - publish_optimization: performance
+    # Region to publish to
+    - publish_region: us-east-5
+    # Set this if you want to enable password auth, password should be in vault
+    - remote_user_password: "{{ remote_user_password }}"
+    # Set Ravello Expire Timer (mins)
+    - env_expire: 500
+    # Base disk image to use for all new VMs that don't specify one
+    - default_image: GENERAL-rhel-server-7.5-update-4-x86_64-img
+  tasks:
+    # This role provisions a new application in ravello
+    - include_role:
+        name: ravello-provision-app
+
+- name: enable repositories
+  tags:
+    - enable_repos
+  become: true
+  hosts:
+    - workstation
+    - ocp_masters
+    - ocp_nodes
+    - ocp_infra_nodes
+  vars_files:
+    - workdir/secrets.yml
+  vars:
+    - repo_method: satellite
+    - satellite_url: satellite.opentlc.com
+    - satellite_org: Red_Hat_GPTE
+  tasks:
+    - include_role: 
+        name: set-repositories
+
+- name: configure install and update packages then reboot
+  tags:
+    - update_and_reboot
+  hosts:
+    - workstation
+    - ocp_masters
+    - ocp_nodes
+    - ocp_infra_nodes
+  tasks:
+    - name: update existing packages
+      become: true
+      yum:
+        name: "*"
+        state: latest
+    - name: reboot after system update
+      include_role: 
+        name: reboot-host
+    - name: install required packages
+      become: true
+      yum:
+        name: "{{ item }}"
+        state: latest
+      with_items: "{{ common_packages }}"
+
+- name: copy authorized keys to root
+  tags:
+    - ssh_keys
+  hosts: 
+    - workstation
+    - ocp_masters
+    - ocp_nodes
+    - ocp_infra_nodes
+
+  become: true
+  tasks:
+    - copy: 
+        src: "/home/{{ ansible_user }}/.ssh/authorized_keys"
+        dest: /root/.ssh/authorized_keys
+        remote_src: True
+
+- name: copy private key to masters
+  tags:
+    - ssh_keys
+  hosts: ocp_masters
+  become: true
+  tasks:
+    - copy: 
+        src: "{{ ansible_ssh_private_key_file }}"
+        dest: /home/{{ ansible_user }}/.ssh/id_rsa 
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: 0600
+    - copy: 
+        src: "{{ ansible_ssh_private_key_file }}"
+        dest: /root/.ssh/id_rsa 
+        owner: "root"
+        group: "root"
+        mode: 0600
+
+- name: create htpasswd on masters
+  tags:
+    - create_htpassd
+  hosts: ocp_masters
+  become: true
+  vars_files:
+    - workdir/secrets.yml
+  tasks:
+    - name: Create directory
+      file: path=/etc/origin/master state=directory
+    - name: Install htpasswd utility
+      yum:
+        name: httpd-tools
+        state: latest
+    - name: Create htpasswd
+      command: /usr/bin/htpasswd -bc /etc/origin/master/htpasswd admin {{ new_ocp_password }}
+
+- name: deploy OCP from workstation
+  tags:
+    - deploy_ocp
+  hosts: workstation
+  become: true
+  remote_user: root
+  tasks:
+    - name: copy openshift-ansible
+      copy: 
+        src: "files/openshift-ansible"
+        dest: "/home/{{ ansible_user }}"
+    - name: install openshift ansible playbooks
+      yum:
+        name: openshift-ansible
+        state: latest
+    - copy: 
+        src: "{{ ansible_ssh_private_key_file }}"
+        dest: /root/.ssh/id_rsa 
+        owner: "root"
+        group: "root"
+        mode: 0600
+    - name: run openshift-ansible pre-reqs
+      command: >
+          ansible-playbook -i inventory 
+          /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml
+      args:
+        chdir: /home/{{ ansible_user }}/openshift-ansible
+    - name: run openshift-ansible install
+      command: >
+          ansible-playbook -i inventory 
+          /usr/share/ansible/openshift-ansible/playbooks/deploy_cluster.yml
+      args:
+        chdir: /home/{{ ansible_user }}/openshift-ansible
+
+- name: configure startup scripts on bastion
+  tags:
+    - startup_scripts
+  hosts: workstation
+  become: true
+  tasks:
+    - name: install nc
+      yum:
+        name: nc
+        state: latest
+    - name: install oc client
+      yum:
+        name: atomic-openshift-clients
+        state: latest
+    - name: copy systemd config over
+      copy: 
+        src: "files/publicurl/fixpublicurl.service"
+        dest: "/etc/systemd/system/fixpublicurl.service"
+    - name: copy update public url script over
+      copy: 
+        src: "files/publicurl/update_publicURL.sh"
+        dest: "/usr/local/bin/update_publicURL.sh"
+        mode: a+x
+    - name: Enable and start fixpublicurl startup script
+      systemd:
+        enabled: yes
+        state: stopped
+        name: fixpublicurl
+
+- name: extract ocp master00 token
+  tags:
+    - extract_token
+  hosts: master00
+  become: true
+  vars_files:
+    - workdir/secrets.yml
+  tasks:
+    - wait_for: 
+        host: "{{ inventory_hostname }}"
+        port: 8053
+    - name: get openshift token name
+      shell: "oc -n management-infra get secrets | grep admin-token | tail -1 | cut -d' ' -f1"
+      register: oc_token_name
+    - name: save openshift token
+      shell: "oc -n management-infra get secrets {{ oc_token_name.stdout }} --template='{{ '{{'  }}.data.token {{ '}}' }}' | base64 -d"
+      register: oc_token_output 
+    - set_fact: 
+        oc_token
+    - debug:
+        var: oc_token_output.stdout
+
+- name: Copy ocp token to bastion
+  tags:
+    - bastion_ocp_token
+  hosts: workstation
+  become: true
+  tasks:
+    - copy:
+        content: "{{ hostvars['master00.example.com']['oc_token_output']['stdout'] }}"
+        dest: /root/ocp.token
+
+# After app is ready to blueprint, remove it from satellite/rhn
+- name: Unregister hosts from satellite/rhn
+  tags:
+    - unregister
+  hosts: 
+    - workstation
+    - ocp_masters
+    - ocp_nodes
+    - ocp_infra_nodes
+  tasks:
+    - name: Unregister hosts
+      redhat_subscription:
+        state: absent
+
+# quiesce app after configuration
+- name: Stop app for blueprinting
+  tags:
+    - stop_app
+  hosts: localhost
+  tasks:
+    - local_action:
+        module: ravello_module
+        app_name: "{{ application_name }}"
+        state: stopped
+
+# Create blueprint after app is created
+- name: Create blueprint after app is created
+  tags:
+    - create_blueprint
+  hosts: localhost
+  tasks:
+    - local_action:
+        module: ravello_module
+        app_name: "{{ application_name }}"
+        blueprint_name: "{{ blueprint_name }}"
+        blueprint_description: "Baseline blueprint for {{ application_name }}"
+        state: blueprint

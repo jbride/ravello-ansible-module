@@ -1,0 +1,30 @@
+#!/bin/env bash
+
+list=false
+
+TEMP=`getopt -o l --long list \
+             -n $0 -- "$@"`
+
+if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
+
+# Note the quotes around `$TEMP': they are essential!
+eval set -- "$TEMP"
+
+while true; do
+  case "$1" in
+    -v | --list ) list=true; shift ;;
+    -- ) shift; break ;;
+    * ) break ;;
+  esac
+done
+
+if [[ $list == true ]]; then
+  if [[ -z "$APP_NAME" ]]; then
+    echo "Must provide --application_name <app_name> with --list"
+    exit 1
+  fi
+  python ../../inventory/ravello.py --list $APP_NAME
+else
+  echo "Must provide --list"
+  exit 1
+fi

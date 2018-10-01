@@ -1,0 +1,33 @@
+repos_to_enable:
+  - rhel-7-server-rpms
+  - rhel-7-server-extras-rpms
+  - rhel-7-server-ose-3.10-rpms
+  - rhel-7-fast-datapath-rpms
+  - rhel-7-server-ansible-2.4-rpms
+  - rh-gluster-3-for-rhel-7-server-rpms
+
+common_packages:
+   - python
+   - bind
+   - git
+   - net-tools
+   - iptables-services
+   - bridge-utils
+   - kexec-tools
+   - sos
+   - haproxy
+   - psacct
+   - unzip
+   - bash-completion
+   - tmux
+   - bind-utils
+   - wget
+   - ansible
+   - git
+   - vim-enhanced
+   - glusterfs-fuse
+   - firewalld
+
+#openshift_packages:
+#   - atomic-openshift-utils
+#   - atomic-openshift-clients
