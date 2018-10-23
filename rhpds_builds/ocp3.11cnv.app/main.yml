@@ -77,7 +77,6 @@
     - ocp_masters
     - ocp_nodes
     - ocp_infra_nodes
-
   become: true
   tasks:
     - copy: 
@@ -106,7 +105,7 @@
 
 - name: Create htpasswd file on masters
   tags:
-    - create_htpassd
+    - create_htpasswd
   hosts: ocp_masters
   become: true
   vars_files:
@@ -121,21 +120,13 @@
     - name: Create htpasswd file on masters
       command: /usr/bin/htpasswd -bc /etc/origin/master/htpasswd admin {{ new_ocp_password }}
 
-- name: Deploy and execute OCP pre-reqs ansible playbook on workstation. This will take a while.
+- name: Copy SSH key to workstation
   tags:
-    - deploy_ocp_prereqs
+    - copy_ssh_key_to_workstation
   hosts: workstation
   become: true
   remote_user: root
   tasks:
-    - name: Copy openshift-ansible templates to workstation
-      copy: 
-        src: "files/openshift-ansible"
-        dest: "/home/{{ ansible_user }}"
-    - name: Install openshift-ansible playbook on workstation
-      yum:
-        name: openshift-ansible
-        state: latest
     - name: Copy SSH key to workstation
       copy: 
         src: "{{ ansible_ssh_private_key_file }}"
@@ -143,10 +134,40 @@
         owner: "root"
         group: "root"
         mode: 0600
+
+- name: Deploy and execute OCP pre-reqs ansible playbook on workstation. This will take a while.
+  tags:
+    - deploy_ocp_prereqs
+  hosts: workstation
+  become: true
+  remote_user: root
+  tasks:
+    - name: Install openshift-ansible playbook on workstation
+      yum:
+        name: openshift-ansible
+        state: latest
+    - name: Copy openshift-ansible templates to workstation
+      copy: 
+        src: "files/openshift-ansible"
+        dest: "/home/{{ ansible_user }}"
+    - name: Patch installer for LVM bug
+      copy: 
+        src: "files/openshift-ansible/glusterfs-template.yml"
+        dest: "/usr/share/ansible/openshift-ansible/roles/openshift_storage_glusterfs/files/glusterfs-template.yml"
+
+- name: Execute OCP pre-reqs ansible playbook on workstation. This will take a while.
+  tags:
+    - execute_ocp_prereqs
+  hosts: workstation
+  become: true
+  remote_user: root
+  vars_files:
+    - workdir/secrets.yml
+  tasks:
     - name: Execute openshift-ansible pre-reqs playbook on workstation
       command: >
           ansible-playbook -i inventory 
-          /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml
+          /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml --extra-vars "redhat_registry_user={{ redhat_registry_user }} redhat_registry_password={{ redhat_registry_password }}"
       args:
         chdir: /home/{{ ansible_user }}/openshift-ansible
 
@@ -156,15 +177,13 @@
   hosts: workstation
   become: true
   remote_user: root
+  vars_files:
+    - workdir/secrets.yml
   tasks:
-    - name: Copy latest openshift-ansible templates to workstation
-      copy: 
-        src: "files/openshift-ansible"
-        dest: "/home/{{ ansible_user }}"
     - name: Execute openshift-ansible installer playbook
       command: >
           ansible-playbook -i inventory 
-          /usr/share/ansible/openshift-ansible/playbooks/deploy_cluster.yml
+          /usr/share/ansible/openshift-ansible/playbooks/deploy_cluster.yml --extra-vars "redhat_registry_user={{ redhat_registry_user }} redhat_registry_password={{ redhat_registry_password }}"
       args:
         chdir: /home/{{ ansible_user }}/openshift-ansible
 

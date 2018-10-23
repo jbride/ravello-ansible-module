@@ -26,10 +26,10 @@ instances:
     prefer_physical: true
     allow_nested: false
     cpus: 4
-    ram: 32
+    ram: 24
     disks:
       - name: os
-        size: 50
+        size: 100
     nics:
       - name: eth0
         ip: 192.168.0.10
@@ -50,10 +50,10 @@ instances:
     prefer_physical: true
     allow_nested: false
     cpus: 4
-    ram: 16
+    ram: 24
     disks:
       - name: os
-        size: 20
+        size: 100
     nics:
       - name: eth0
         ip: 192.168.0.11
@@ -69,19 +69,19 @@ instances:
   - name: node00
     hostname: node00.example.com
     prefer_physical: true
-    allow_nested: false
+    allow_nested: true
     proxy: workstation
     groups: 
       - ocp_nodes
     cpus: 4
-    ram: 16
+    ram: 24
     disks:
       - name: os
-        size: 20
+        size: 100
       - name: gluster_pv1
-        size: 10
+        size: 50
       - name: gluster_pv2
-        size: 10
+        size: 50
       - name: gluster_reg1
         size: 20
       - name: gluster_reg2
@@ -90,23 +90,26 @@ instances:
       - name: eth0
         ip: 192.168.0.12
         mac: 2c:ab:cd:ef:00:12
+      - name: eth1
+        ip: 192.168.1.12
+        mac: 2c:ab:cd:ef:01:12
 
   - name: node01
     hostname: node01.example.com
     prefer_physical: true
-    allow_nested: false
+    allow_nested: true
     proxy: workstation
     groups: 
       - ocp_nodes
     cpus: 4
-    ram: 16
+    ram: 24
     disks:
       - name: os
-        size: 20
+        size: 100
       - name: gluster_pv1
-        size: 10
+        size: 50
       - name: gluster_pv2
-        size: 10
+        size: 50
       - name: gluster_reg1
         size: 20
       - name: gluster_reg2
@@ -115,23 +118,26 @@ instances:
       - name: eth0
         ip: 192.168.0.13
         mac: 2c:ab:cd:ef:00:13
+      - name: eth1
+        ip: 192.168.1.13
+        mac: 2c:ab:cd:ef:01:13
 
   - name: node02
     hostname: node02.example.com
     prefer_physical: true
-    allow_nested: false
+    allow_nested: true
     proxy: workstation
     groups: 
       - ocp_nodes
     cpus: 4
-    ram: 16
+    ram: 24
     disks:
       - name: os
-        size: 20
+        size: 100
       - name: gluster_pv1
-        size: 10
+        size: 50
       - name: gluster_pv2
-        size: 10
+        size: 50
       - name: gluster_reg1
         size: 20
       - name: gluster_reg2
@@ -140,6 +146,37 @@ instances:
       - name: eth0
         ip: 192.168.0.14
         mac: 2c:ab:cd:ef:00:14
+      - name: eth1
+        ip: 192.168.1.14
+        mac: 2c:ab:cd:ef:01:14
+
+  - name: node03
+    hostname: node03.example.com
+    prefer_physical: true
+    allow_nested: true
+    proxy: workstation
+    groups: 
+      - ocp_nodes
+    cpus: 4
+    ram: 24
+    disks:
+      - name: os
+        size: 100
+      - name: gluster_pv1
+        size: 50
+      - name: gluster_pv2
+        size: 50
+      - name: gluster_reg1
+        size: 20
+      - name: gluster_reg2
+        size: 20
+    nics:
+      - name: eth0
+        ip: 192.168.0.15
+        mac: 2c:ab:cd:ef:00:15
+      - name: eth1
+        ip: 192.168.1.15
+        mac: 2c:ab:cd:ef:01:15
 
 subnets:
-  - "192.168.0.0/24"
+  - "192.168.0.0/16"

@@ -312,7 +312,7 @@ class Vm:
            from_kwargs(
                kwargs, 
                'description', 
-               "\"" + self.name + "\\nnohbac: true\\n\"")
+               "\"" + self.name )
         self.num_cpus = from_kwargs(kwargs, 'cpus', 1)
         self.memory_size = from_kwargs(kwargs, 'ram', 2)
         self.memory_unit = from_kwargs(kwargs, 'mem_unit', "GB")

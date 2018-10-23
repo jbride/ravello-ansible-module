@@ -8,7 +8,7 @@
     instances: "{{ instances | map('combine', {'private_key_path' : ssh_key_path}) | list }}"
   when: (instances.private_key_path is not defined) and use_cloud_template_module
 
-- name: Create ravello cloud jinja template from vm instance definitions
+- name: Create Ravello jinja cloud template from VM instance definitions
   ravello_cloud_template:
     path: "{{ template_in_path }}"
     instances: "{{ instances }}"
@@ -16,13 +16,13 @@
     default_image: "{{ default_image }}"
   when: use_cloud_template_module
 
-- name: Expand jinja template into finalized ravello template
+- name: Expand jinja template into finalized Ravello template
   template:
     src: "{{ template_in_path }}"
     dest: "{{ template_out_path }}"
   when: use_jinja_cloud_template
 
-- name: "build and publish staging app based on {{ app_template }}"
+- name: Build and publish staging app based on {{ app_template }} in Ravello. THIS WILL TAKE A LONG TIME
   local_action:
     module: ravello_module
     app_name: "{{ application_name }}"

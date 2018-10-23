@@ -7,4 +7,5 @@ datest=`date +%Y%m%d%H%M%S`
 
 export APP_NAME="${APP_NAME}-${datest}"
 
-time /usr/bin/ansible-playbook --extra-vars "application_name=${APP_NAME} blueprint_name=${APP_NAME}-bp" -i ./inventory main.yml --ask-vault-pass -v #--skip-tags="create_blueprint"
+time /usr/bin/ansible-playbook --extra-vars "application_name=${APP_NAME} blueprint_name=${APP_NAME}-bp" -i ./inventory main.yml --ask-vault-pass
+#--skip-tags="create_blueprint"

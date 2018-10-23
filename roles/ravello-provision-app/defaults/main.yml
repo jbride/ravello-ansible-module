@@ -7,7 +7,6 @@ template_in_path: "{{ workdir_path }}/{{ template_name }}.j2"
 template_out_path: "{{ workdir_path }}/{{ template_name }}"
 ssh_key_path: "{{ workdir_path }}/{{ application_name }}.id_rsa"
 remote_user: cloud-user
-ssh_password_auth: False
 ravello_cost_bucket: Default
 publish_optimization: cost
 publish_region: default
