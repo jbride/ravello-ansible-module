@@ -8,6 +8,8 @@
     # for setting root and user passwords
     - workdir/secrets.yml
   vars:
+    # The Ravello SDK requires Python2
+    - ansible_python_interpreter: python2
     # This variable is used by the ravello-provision-app role
     # to determine the application name
     - application_name: "{{ application_name }}"
