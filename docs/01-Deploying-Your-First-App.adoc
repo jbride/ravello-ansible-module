@@ -51,7 +51,7 @@ From the top-level directory of `ansible-ravello`, execute the command:
 ./tools/create-inventory <your-name>.first.app -o app-inventory
 ```
 
-You will use this newly created inventory any time you run `ansible-playbook`.
+You will use this newly created inventory any time you run `ansible-playbook`. Edit the created file and replace <your_name> with your Ravello User Name.
 
 == Create the Playbook
 
