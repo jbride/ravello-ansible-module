@@ -4,7 +4,7 @@ repos_to_enable:
   - rhel-7-server-ose-3.11-rpms
   - rhel-7-fast-datapath-rpms
   - rhel-7-server-ansible-2.6-rpms
-  - rh-gluster-3-for-rhel-7-server-rpms
+  - rh-gluster-3-client-for-rhel-7-server-rpms
 
 common_packages:
    - python

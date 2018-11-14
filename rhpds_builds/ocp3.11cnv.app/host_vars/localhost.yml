@@ -19,7 +19,7 @@ instances:
           port: 22
 
   - name: master00
-    hostname: [master00.example.com, master00-REPL.rhpds.opentlc.com]
+    hostname: [master00.example.com, master00-REPL.generic.opentlc.com]
     proxy: workstation
     groups: 
       - ocp_masters
@@ -43,7 +43,7 @@ instances:
         port: 443
 
   - name: infranode00
-    hostname: [infranode00.example.com, infranode00-REPL.rhpds.opentlc.com]
+    hostname: [infranode00.example.com, infranode00-REPL.generic.opentlc.com]
     proxy: workstation
     groups: 
       - ocp_infra_nodes
