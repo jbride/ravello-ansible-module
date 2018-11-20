@@ -27,6 +27,7 @@ common_packages:
    - vim-enhanced
    - glusterfs-fuse
    - firewalld
+   - ipa-client
 
 #openshift_packages:
 #   - atomic-openshift-utils

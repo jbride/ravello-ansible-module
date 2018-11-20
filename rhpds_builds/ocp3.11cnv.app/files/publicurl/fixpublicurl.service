@@ -3,7 +3,8 @@ Description=Fix OpenShift publicURL
 After=atomic-openshift-master-api.service
 
 [Service]
-ExecStart=/usr/local/bin/update_publicURL.sh
+# Note the extra-vars are required or it will fail, they are not used.
+ExecStart=/usr/bin/ansible-playbook -vvi /home/cloud-user/openshift-ansible/inventory /usr/local/share/ocp-public-url-change/main.yml --extra-vars "oreg_auth_user=foo -e oreg_auth_password=foo"
 Type=simple
 
 [Install]

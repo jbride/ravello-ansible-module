@@ -203,16 +203,24 @@
       yum:
         name: atomic-openshift-clients
         state: latest
+    - name: Download public-url-change git repo
+      command: >
+          git clone https://github.com/jcpowermac/ocp-public-url-change.git
+      args:
+        chdir: /usr/local/share
+    - name: Install required ansible galaxy modules
+      command: >
+          ansible-galaxy install -r /usr/local/share/ocp-public-url-change/requirements.yml
     - name: Copy fixpublicurl to systemd on workstation
       copy: 
         src: "files/publicurl/fixpublicurl.service"
         dest: "/etc/systemd/system/fixpublicurl.service"
-    - name: Copy update_publicURL.sh script to workstation
-      copy: 
-        src: "files/publicurl/update_publicURL.sh"
-        dest: "/usr/local/bin/update_publicURL.sh"
-        mode: a+x
-    - name: Enable and start fixpublicurl systemd service on workstation
+    #- name: Copy update_publicURL.sh script to workstation
+    #  copy: 
+    #    src: "files/publicurl/update_publicURL.sh"
+    #    dest: "/usr/local/bin/update_publicURL.sh"
+    #    mode: a+x
+    - name: Enable fixpublicurl systemd service on workstation
       systemd:
         enabled: yes
         state: stopped
