@@ -261,13 +261,11 @@
 - name: Fetch kube config to workstation root
   tags:
     - bastion_fetch_kube
-  hosts: master00
+  hosts: workstation
   become: true
   tasks:
-    - fetch:
-        src: /root/.kube
-        dest: /root/.kube
-        flat: yes
+    - name: SCP kube config
+      command: scp -r master00.example.com:/root/.kube /root/
 
 # After app is ready to blueprint, remove it from satellite/rhn
 - name: Unregister hosts from Satellite/RHN
