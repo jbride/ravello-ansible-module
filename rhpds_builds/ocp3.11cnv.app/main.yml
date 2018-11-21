@@ -258,6 +258,17 @@
         content: "{{ hostvars['master00.example.com']['oc_token_output']['stdout'] }}"
         dest: /root/ocp.token
 
+- name: Fetch kube config to workstation root
+  tags:
+    - bastion_fetch_kube
+  hosts: master00
+  become: true
+  tasks:
+    - fetch:
+        src: /root/.kube
+        dest: /root/.kube
+        flat: yes
+
 # After app is ready to blueprint, remove it from satellite/rhn
 - name: Unregister hosts from Satellite/RHN
   tags:
