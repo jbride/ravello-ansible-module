@@ -44,7 +44,7 @@
     - satellite_url: satellite.opentlc.com
     - satellite_org: Red_Hat_GPTE
   tasks:
-    - include_role: 
+    - include_role:
         name: set-repositories
 
 - name: Configure, install, and update packages then reboot hosts
@@ -68,20 +68,20 @@
         name: "*"
         state: latest
     - name: Reboot hosts after system update
-      include_role: 
+      include_role:
         name: reboot-host
 
 - name: Copy authorized keys to root
   tags:
     - ssh_keys
-  hosts: 
+  hosts:
     - workstation
     - ocp_masters
     - ocp_nodes
     - ocp_infra_nodes
   become: true
   tasks:
-    - copy: 
+    - copy:
         src: "/home/{{ ansible_user }}/.ssh/authorized_keys"
         dest: /root/.ssh/authorized_keys
         remote_src: True
@@ -92,15 +92,15 @@
   hosts: ocp_masters
   become: true
   tasks:
-    - copy: 
+    - copy:
         src: "{{ ansible_ssh_private_key_file }}"
-        dest: /home/{{ ansible_user }}/.ssh/id_rsa 
+        dest: /home/{{ ansible_user }}/.ssh/id_rsa
         owner: "{{ ansible_user }}"
         group: "{{ ansible_user }}"
         mode: 0600
-    - copy: 
+    - copy:
         src: "{{ ansible_ssh_private_key_file }}"
-        dest: /root/.ssh/id_rsa 
+        dest: /root/.ssh/id_rsa
         owner: "root"
         group: "root"
         mode: 0600
@@ -130,9 +130,9 @@
   remote_user: root
   tasks:
     - name: Copy SSH key to workstation
-      copy: 
+      copy:
         src: "{{ ansible_ssh_private_key_file }}"
-        dest: /root/.ssh/id_rsa 
+        dest: /root/.ssh/id_rsa
         owner: "root"
         group: "root"
         mode: 0600
@@ -149,11 +149,11 @@
         name: openshift-ansible
         state: latest
     - name: Copy openshift-ansible templates to workstation
-      copy: 
+      copy:
         src: "files/openshift-ansible"
         dest: "/home/{{ ansible_user }}"
     - name: Patch installer for LVM bug
-      copy: 
+      copy:
         src: "files/openshift-ansible/glusterfs-template.yml"
         dest: "/usr/share/ansible/openshift-ansible/roles/openshift_storage_glusterfs/files/glusterfs-template.yml"
 
@@ -168,7 +168,7 @@
   tasks:
     - name: Execute openshift-ansible pre-reqs playbook on workstation
       command: >
-          ansible-playbook -i inventory 
+          ansible-playbook -i inventory
           /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml --extra-vars "redhat_registry_user={{ redhat_registry_user }} redhat_registry_password={{ redhat_registry_password }}"
       args:
         chdir: /home/{{ ansible_user }}/openshift-ansible
@@ -184,7 +184,7 @@
   tasks:
     - name: Execute openshift-ansible installer playbook
       command: >
-          ansible-playbook -i inventory 
+          ansible-playbook -i inventory
           /usr/share/ansible/openshift-ansible/playbooks/deploy_cluster.yml --extra-vars "redhat_registry_user={{ redhat_registry_user }} redhat_registry_password={{ redhat_registry_password }}"
       args:
         chdir: /home/{{ ansible_user }}/openshift-ansible
@@ -212,11 +212,11 @@
       command: >
           ansible-galaxy install -r /usr/local/share/ocp-public-url-change/requirements.yml
     - name: Copy fixpublicurl to systemd on workstation
-      copy: 
+      copy:
         src: "files/publicurl/fixpublicurl.service"
         dest: "/etc/systemd/system/fixpublicurl.service"
     #- name: Copy update_publicURL.sh script to workstation
-    #  copy: 
+    #  copy:
     #    src: "files/publicurl/update_publicURL.sh"
     #    dest: "/usr/local/bin/update_publicURL.sh"
     #    mode: a+x
@@ -234,7 +234,7 @@
   vars_files:
     - workdir/secrets.yml
   tasks:
-    - wait_for: 
+    - wait_for:
         host: "{{ inventory_hostname }}"
         port: 8053
     - name: Get OCP token name
@@ -242,8 +242,8 @@
       register: oc_token_name
     - name: Get OCP token
       shell: "oc -n management-infra get secrets {{ oc_token_name.stdout }} --template='{{ '{{'  }}.data.token {{ '}}' }}' | base64 -d"
-      register: oc_token_output 
-    - set_fact: 
+      register: oc_token_output
+    - set_fact:
         oc_token
     #- debug:
     #    var: oc_token_output.stdout
@@ -267,15 +267,76 @@
     - name: SCP kube config
       command: scp -r master00.example.com:/root/.kube /root/
 
+- name: Install CNV
+  vars:
+    cnv_docker_tag: "v1.3.0"
+    cnv_registry_url: "registry.access.redhat.com"
+    cnv_registry_namespace: "cnv-tech-preview"
+    status_command: !unsafe "oc get ServiceInstance kubevirt -n kube-system --template '{{ .status.provisionStatus }}'"
+  vars_files:
+    - workdir/secrets.yml
+  tags:
+    - cnv
+  hosts:
+    - workstation
+  become: true
+  tasks:
+    - name: Admin Cluster Role to cluster-admin
+      command: "oc adm policy add-cluster-role-to-user cluster-admin admin"
+
+    - name: Copy broker config to workstation
+      copy:
+        src: "files/broker-config.yaml"
+        dest: "/tmp"
+
+    - name: Replace Broker Config
+      command: "oc replace -f /tmp/broker-config.yaml -n openshift-ansible-service-broker"
+
+
+    - name: Import image
+      command: "oc import-image --from registry.access.redhat.com/cnv-tech-preview/kubevirt-apb --confirm kubevirt-apb -n openshift"
+
+# TODO: Determine if there is a way to get the status of an import 
+    - name: Wait for import-image
+      pause:
+        minutes: 5
+
+# Not going to mess with the relist.  Just delete the asb pod and it will startup and see the new apb
+    - name: Delete ASB pods
+      command: "oc delete pods --all -n openshift-ansible-service-broker"
+
+      
+# TODO: Replace with an until 
+    - name: Sleep for ASB pod to start
+      pause:
+        minutes: 2
+
+    - name: Template CNV ServiceInstance
+      template:
+        src: templates/si.yaml.j2
+        dest: /tmp/si.yaml
+
+    - name: Apply CNV ServiceInstance
+      command: "oc apply -f /tmp/si.yaml -n kube-system"
+
+    - name: Wait for provisionStatus
+      command: "{{ status_command }}"
+      register: status
+      until: status.stdout.find("Provisioned") != -1
+      delay: 30
+      retries: 40
+
+
 # After app is ready to blueprint, remove it from satellite/rhn
 - name: Unregister hosts from Satellite/RHN
   tags:
     - unregister
-  hosts: 
+  hosts:
     - workstation
     - ocp_masters
     - ocp_nodes
     - ocp_infra_nodes
+  become: true
   tasks:
     - name: Unregister hosts
       redhat_subscription:

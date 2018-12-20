@@ -74,25 +74,25 @@ openshift_master_api_port=443
 openshift_master_console_port=443
 
 ## registry
-openshift_hosted_registry_storage_kind=glusterfs 
-openshift_hosted_registry_storage_volume_size=15Gi  
+openshift_hosted_registry_storage_kind=glusterfs
+openshift_hosted_registry_storage_volume_size=15Gi
 openshift_storage_glusterfs_timeout=900
 
 openshift_master_dynamic_provisioning_enabled=True
 
 # CNS storage for applications
 openshift_storage_glusterfs_namespace=app-storage
-openshift_storage_glusterfs_block_deploy=false    
+openshift_storage_glusterfs_block_deploy=false
 openshift_storage_glusterfs_storageclass=true
 openshift_storageclass_default=false
 openshift_storage_glusterfs_storageclass_default=True
 
 # CNS storage for OpenShift infrastructure
-openshift_storage_glusterfs_registry_namespace=infra-storage  
-openshift_storage_glusterfs_registry_storageclass=false       
-openshift_storage_glusterfs_registry_block_deploy=true   
-openshift_storage_glusterfs_registry_block_host_vol_create=true    
-openshift_storage_glusterfs_registry_block_host_vol_size=200   
+openshift_storage_glusterfs_registry_namespace=infra-storage
+openshift_storage_glusterfs_registry_storageclass=false
+openshift_storage_glusterfs_registry_block_deploy=true
+openshift_storage_glusterfs_registry_block_host_vol_create=true
+openshift_storage_glusterfs_registry_block_host_vol_size=200
 openshift_storage_glusterfs_registry_block_storageclass=true
 openshift_storage_glusterfs_registry_block_storageclass_default=true
 
@@ -117,6 +117,7 @@ openshift_logging_es_cluster_size=1
 
 ## asb
 ansible_service_broker_registry_whitelist=['.*-apb$']
+ansible_service_broker_local_registry_whitelist=['.*-apb$']
 openshift_hosted_etcd_storage_kind=dynamic
 openshift_hosted_etcd_storage_volume_name=etcd-vol
 openshift_hosted_etcd_storage_access_modes=["ReadWriteOnce"]
