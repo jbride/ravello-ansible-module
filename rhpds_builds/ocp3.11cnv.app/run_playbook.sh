@@ -8,5 +8,9 @@ then
   export APP_NAME="${APP_NAME}-${datest}"
 fi
 
-time /usr/bin/ansible-playbook --extra-vars "application_name=${APP_NAME} blueprint_name=${APP_NAME}-bp" -i ./inventory main.yml --ask-vault-pass
-#--skip-tags="create_blueprint"
+
+time /usr/bin/ansible-playbook --extra-vars \
+	"application_name=${APP_NAME} blueprint_name=${APP_NAME}-bp" \
+	-i ./inventory \
+	--ask-vault-pass \
+	main.yml

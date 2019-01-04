@@ -1,0 +1,15 @@
+---
+apiVersion: servicecatalog.k8s.io/v1beta1
+kind: ServiceInstance
+metadata:
+  name: kubevirt
+  namespace: kube-system
+spec:
+  clusterServiceClassExternalName: localregistry-virtualization
+  clusterServicePlanExternalName: default
+  parameters:
+    admin_user: admin
+    admin_password: "{{ new_ocp_password }}"
+    registry_url: "{{ cnv_registry_url }}"
+    registry_namespace: "{{ cnv_registry_namespace }}"
+    docker_tag: "{{ cnv_docker_tag }}"
