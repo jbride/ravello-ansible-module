@@ -1,0 +1,125 @@
+[OSEv3:children]
+masters
+nodes
+etcd
+glusterfs
+#glusterfs_registry
+
+[masters]
+master00.example.com
+
+[etcd]
+master00.example.com
+
+[glusterfs]
+node00.example.com glusterfs_ip=192.168.0.12 glusterfs_devices='[ "/dev/vdb", "/dev/vdc" ]'
+node01.example.com glusterfs_ip=192.168.0.13 glusterfs_devices='[ "/dev/vdb", "/dev/vdc" ]'
+node02.example.com glusterfs_ip=192.168.0.14 glusterfs_devices='[ "/dev/vdb", "/dev/vdc" ]'
+node03.example.com glusterfs_ip=192.168.0.15 glusterfs_devices='[ "/dev/vdb", "/dev/vdc" ]'
+
+#[glusterfs_registry]
+#node00.example.com glusterfs_ip=192.168.0.12 glusterfs_devices='[ "/dev/vdd", "/dev/vde" ]'
+#node01.example.com glusterfs_ip=192.168.0.13 glusterfs_devices='[ "/dev/vdd", "/dev/vde" ]'
+#node02.example.com glusterfs_ip=192.168.0.14 glusterfs_devices='[ "/dev/vdd", "/dev/vde" ]'
+#node03.example.com glusterfs_ip=192.168.0.15 glusterfs_devices='[ "/dev/vdd", "/dev/vde" ]'
+
+[nodes]
+master00.example.com openshift_node_group_name="node-config-master"
+infranode00.example.com openshift_node_group_name='node-config-infra'
+node00.example.com openshift_node_group_name='node-config-compute'
+node01.example.com openshift_node_group_name='node-config-compute'
+node02.example.com openshift_node_group_name='node-config-compute'
+node03.example.com openshift_node_group_name='node-config-compute'
+
+[all:vars]
+ansible_ssh_private_key_file=/root/.ssh/id_rsa
+
+[OSEv3:vars]
+# Limit to a specific version
+#openshift_tag=v3.10.34
+
+openshift_schedulable=true
+openshift_clock_enabled=true
+openshift_deployment_type=openshift-enterprise
+deployment_type=openshift-enterprise
+openshift_disable_check=docker_image_availability
+dynamic_volumes_check=False
+
+oreg_auth_user={{ redhat_registry_user }}
+oreg_auth_password={{ redhat_registry_password }}
+
+openshift_master_identity_providers=[{'name': 'htpasswd_auth', 'login': 'true', 'challenge': 'true', 'kind': 'HTPasswdPasswordIdentityProvider'}]
+openshift_master_htpasswd_file=/etc/origin/master/htpasswd
+openshift_master_manage_htpasswd=False
+
+openshift_master_cluster_method=native
+openshift_use_openshift_sdn=true
+ansible_service_broker_dev_broker=true
+
+openshift_use_crio=true
+openshift_crio_use_rpm=true
+openshift_service_catalog_retries=150
+
+openshift_console_install=true
+
+openshift_master_admission_plugin_config='{"PersistentVolumeClaimResize":{"configuration":{"apiVersion":"v1", "kind":"DefaultAdmissionConfig", "disable":false}}}'
+
+# Enable the Service Catalog and ASB
+openshift_enable_service_catalog=True
+ansible_service_broker_install=True
+
+os_firewall_use_firewalld=True
+
+openshift_master_api_port=443
+openshift_master_console_port=443
+
+## registry
+openshift_hosted_registry_storage_kind=glusterfs
+openshift_hosted_registry_storage_volume_size=15Gi
+openshift_storage_glusterfs_timeout=900
+
+openshift_master_dynamic_provisioning_enabled=True
+
+# CNS storage for applications
+openshift_storage_glusterfs_namespace=app-storage
+openshift_storage_glusterfs_block_deploy=false
+openshift_storage_glusterfs_storageclass=true
+openshift_storageclass_default=false
+openshift_storage_glusterfs_storageclass_default=True
+
+# CNS storage for OpenShift infrastructure
+openshift_storage_glusterfs_registry_namespace=infra-storage
+openshift_storage_glusterfs_registry_storageclass=false
+openshift_storage_glusterfs_registry_block_deploy=true
+openshift_storage_glusterfs_registry_block_host_vol_create=true
+openshift_storage_glusterfs_registry_block_host_vol_size=200
+openshift_storage_glusterfs_registry_block_storageclass=true
+openshift_storage_glusterfs_registry_block_storageclass_default=true
+
+## metric
+openshift_metrics_install_metrics=true
+openshift_metrics_cassanda_pvc_storage_class_name=glusterfs-storage
+openshift_metrics_storage_access_modes=['ReadWriteOnce']
+openshift_metrics_storage_kind=dynamic
+openshift_cluster_monitoring_operator_install=true
+openshift_prometheus_storage_type=pvc
+openshift_prometheus_alertmanager_storage_type=pvc
+openshift_prometheus_alertbuffer_storage_type=pvc
+
+# logging
+openshift_logging_install_logging=true
+openshift_logging_storage_kind=dynamic
+openshift_logging_es_pvc_dynamic=true
+openshift_logging_es_pvc_storage_class_name="glusterfs-registry-block"
+openshift_logging_es_nodeselector={"node-role.kubernetes.io/infra": "true"}
+openshift_logging_es_ops_nodeselector={"node-role.kubernetes.io/infra": "true"}
+openshift_logging_es_cluster_size=1
+
+## asb
+ansible_service_broker_registry_whitelist=['.*-apb$']
+ansible_service_broker_local_registry_whitelist=['.*-apb$']
+openshift_hosted_etcd_storage_kind=dynamic
+openshift_hosted_etcd_storage_volume_name=etcd-vol
+openshift_hosted_etcd_storage_access_modes=["ReadWriteOnce"]
+openshift_hosted_etcd_storage_volume_size=1G
+openshift_hosted_etcd_storage_labels={'storage'='etcd'}

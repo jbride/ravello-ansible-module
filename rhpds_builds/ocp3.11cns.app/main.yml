@@ -1,0 +1,342 @@
+---
+
+- name: Provision baseline Ravello application from template
+  tags:
+    - provision
+  hosts: localhost
+  vars_files:
+    # for setting root and user passwords
+    - workdir/secrets.yml
+  vars:
+    # The Ravello SDK requires Python2
+    - ansible_python_interpreter: python2
+    # This variable is used by the ravello-provision-app role
+    # to determine the application name
+    - application_name: "{{ application_name }}"
+    # For baremetal
+    - publish_optimization: performance
+    # Region to publish to
+    - publish_region: us-east-5
+    # Set this if you want to enable password auth, password should be in vault
+    - remote_user_password: "{{ remote_user_password }}"
+    # Set Ravello Expire Timer (mins)
+    - env_expire: 500
+    # Base disk image to use for all new VMs that don't specify one
+    - default_image: GENERAL-rhel-server-7.5-update-4-x86_64-img
+  tasks:
+    # This role provisions a new application in ravello
+    - include_role:
+        name: ravello-provision-app
+
+- name: Enable software repositories
+  tags:
+    - enable_repos
+  become: true
+  hosts:
+    - workstation
+    - ocp_masters
+    - ocp_nodes
+    - ocp_infra_nodes
+  vars_files:
+    - workdir/secrets.yml
+  vars:
+    - repo_method: satellite
+    - satellite_url: satellite.opentlc.com
+    - satellite_org: Red_Hat_GPTE
+  tasks:
+    - include_role:
+        name: set-repositories
+
+- name: Configure, install, and update packages then reboot hosts
+  tags:
+    - update_and_reboot
+  hosts:
+    - workstation
+    - ocp_masters
+    - ocp_nodes
+    - ocp_infra_nodes
+  tasks:
+    - name: Install required packages for OSP
+      become: true
+      yum:
+        name: "{{ item }}"
+        state: latest
+      with_items: "{{ common_packages }}"
+    - name: Update all software packages
+      become: true
+      yum:
+        name: "*"
+        state: latest
+    - name: Reboot hosts after system update
+      include_role:
+        name: reboot-host
+
+- name: Copy authorized keys to root
+  tags:
+    - ssh_keys
+  hosts:
+    - workstation
+    - ocp_masters
+    - ocp_nodes
+    - ocp_infra_nodes
+  become: true
+  tasks:
+    - copy:
+        src: "/home/{{ ansible_user }}/.ssh/authorized_keys"
+        dest: /root/.ssh/authorized_keys
+        remote_src: True
+
+- name: Copy private key to masters
+  tags:
+    - ssh_keys
+  hosts: ocp_masters
+  become: true
+  tasks:
+    - copy:
+        src: "{{ ansible_ssh_private_key_file }}"
+        dest: /home/{{ ansible_user }}/.ssh/id_rsa
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: 0600
+    - copy:
+        src: "{{ ansible_ssh_private_key_file }}"
+        dest: /root/.ssh/id_rsa
+        owner: "root"
+        group: "root"
+        mode: 0600
+
+- name: Create htpasswd file on masters
+  tags:
+    - create_htpasswd
+  hosts: ocp_masters
+  become: true
+  vars_files:
+    - workdir/secrets.yml
+  tasks:
+    - name: Create directory for htpasswd file
+      file: path=/etc/origin/master state=directory
+    - name: Install htpasswd utility on masters
+      yum:
+        name: httpd-tools
+        state: latest
+    - name: Create htpasswd file on masters
+      command: /usr/bin/htpasswd -bc /etc/origin/master/htpasswd admin {{ new_ocp_password }}
+
+- name: Copy SSH key to workstation
+  tags:
+    - copy_ssh_key_to_workstation
+  hosts: workstation
+  become: true
+  remote_user: root
+  tasks:
+    - name: Copy SSH key to workstation
+      copy:
+        src: "{{ ansible_ssh_private_key_file }}"
+        dest: /root/.ssh/id_rsa
+        owner: "root"
+        group: "root"
+        mode: 0600
+
+- name: Deploy and execute OCP pre-reqs ansible playbook on workstation. This will take a while.
+  tags:
+    - deploy_ocp_prereqs
+  hosts: workstation
+  become: true
+  remote_user: root
+  tasks:
+    - name: Install openshift-ansible playbook on workstation
+      yum:
+        name: openshift-ansible
+        state: latest
+    - name: Copy openshift-ansible templates to workstation
+      copy:
+        src: "files/openshift-ansible"
+        dest: "/home/{{ ansible_user }}"
+    - name: Patch installer for LVM bug
+      copy:
+        src: "files/openshift-ansible/glusterfs-template.yml"
+        dest: "/usr/share/ansible/openshift-ansible/roles/openshift_storage_glusterfs/files/glusterfs-template.yml"
+
+- name: Execute OCP pre-reqs ansible playbook on workstation. This will take a while.
+  tags:
+    - execute_ocp_prereqs
+  hosts: workstation
+  become: true
+  remote_user: root
+  vars_files:
+    - workdir/secrets.yml
+  tasks:
+    - name: Execute openshift-ansible pre-reqs playbook on workstation
+      command: >
+          ansible-playbook -i inventory
+          /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml --extra-vars "redhat_registry_user={{ redhat_registry_user }} redhat_registry_password={{ redhat_registry_password }}"
+      args:
+        chdir: /home/{{ ansible_user }}/openshift-ansible
+
+- name: Execute OCP cluster installation from workstation. This will take a while.
+  tags:
+    - deploy_ocp
+  hosts: workstation
+  become: true
+  remote_user: root
+  vars_files:
+    - workdir/secrets.yml
+  tasks:
+    - name: Execute openshift-ansible installer playbook
+      command: >
+          ansible-playbook -i inventory
+          /usr/share/ansible/openshift-ansible/playbooks/deploy_cluster.yml --extra-vars "redhat_registry_user={{ redhat_registry_user }} redhat_registry_password={{ redhat_registry_password }}"
+      args:
+        chdir: /home/{{ ansible_user }}/openshift-ansible
+
+- name: Configure startup scripts on workstation
+  tags:
+    - startup_scripts
+  hosts: workstation
+  become: true
+  tasks:
+    - name: Install netcat (nc)
+      yum:
+        name: nc
+        state: latest
+    - name: Install oc client on workstation
+      yum:
+        name: atomic-openshift-clients
+        state: latest
+    - name: Download public-url-change git repo
+      command: >
+          git clone https://github.com/jcpowermac/ocp-public-url-change.git
+      args:
+        chdir: /usr/local/share
+    - name: Install required ansible galaxy modules
+      command: >
+          ansible-galaxy install -r /usr/local/share/ocp-public-url-change/requirements.yml
+    - name: Copy fixpublicurl to systemd on workstation
+      copy:
+        src: "files/publicurl/fixpublicurl.service"
+        dest: "/etc/systemd/system/fixpublicurl.service"
+    #- name: Copy update_publicURL.sh script to workstation
+    #  copy:
+    #    src: "files/publicurl/update_publicURL.sh"
+    #    dest: "/usr/local/bin/update_publicURL.sh"
+    #    mode: a+x
+    - name: Enable fixpublicurl systemd service on workstation
+      systemd:
+        enabled: yes
+        state: stopped
+        name: fixpublicurl
+
+- name: Extract OCP master00 token
+  tags:
+    - extract_token
+  hosts: master00
+  become: true
+  vars_files:
+    - workdir/secrets.yml
+  tasks:
+    - wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 8053
+    - name: Get OCP token name
+      shell: "oc -n management-infra get secrets | grep admin-token | tail -1 | cut -d' ' -f1"
+      register: oc_token_name
+    - name: Get OCP token
+      shell: "oc -n management-infra get secrets {{ oc_token_name.stdout }} --template='{{ '{{'  }}.data.token {{ '}}' }}' | base64 -d"
+      register: oc_token_output
+    - set_fact:
+        oc_token
+    #- debug:
+    #    var: oc_token_output.stdout
+
+- name: Copy OCP token to workstation
+  tags:
+    - bastion_ocp_token
+  hosts: workstation
+  become: true
+  tasks:
+    - copy:
+        content: "{{ hostvars['master00.example.com']['oc_token_output']['stdout'] }}"
+        dest: /root/ocp.token
+
+- name: Fetch kube config to workstation root
+  tags:
+    - bastion_fetch_kube
+  hosts: workstation
+  become: true
+  tasks:
+    - name: SCP kube config
+      command: scp -r master00.example.com:/root/.kube /root/
+
+- name: NFS Server PV Configuration
+  tags:
+    - configure_pvs
+  hosts: workstation
+  become: true
+  tasks:
+    - set_fact:
+        user_vols: '200'
+        nfs_export_path: "/srv/nfs"
+        nfs_host: "bastion.example.com"
+        pv_size: "10Gi"
+        persistentVolumeReclaimPolicy: Recycle
+    - name: Create user vols
+      shell: "mkdir -p /srv/nfs/user-vols/vol{1..{{user_vols}}}"
+    - name: chmod the user vols
+      shell: "chmod -R 777 /srv/nfs/user-vols"
+    - name: Make sure nfs server packages are installed
+      yum:
+        name: "nfs-utils"
+        state: latest
+    - name: Add to /etc/exports
+      lineinfile:
+        path: /etc/exports
+        line: "{{ nfs_export_path }} *(rw,sync,no_root_squash)"
+    - name: Enable nfs service
+      systemd:
+        name: nfs
+        enabled: yes
+        state: restarted
+    - name: Generate user vol PV file
+      template:
+        src: "files/userpvs.j2"
+        dest: "/root/userpvs.yml"
+    - shell: 'oc create -f /root/userpvs.yml || oc replace -f /root/userpvs.yml'
+
+# After app is ready to blueprint, remove it from satellite/rhn
+- name: Unregister hosts from Satellite/RHN
+  tags:
+    - unregister
+  hosts:
+    - workstation
+    - ocp_masters
+    - ocp_nodes
+    - ocp_infra_nodes
+  become: true
+  tasks:
+    - name: Unregister hosts
+      redhat_subscription:
+        state: absent
+
+# quiesce app after configuration
+#- name: Stop Ravello staging application for blueprinting
+#  tags:
+#    - stop_app
+#  hosts: localhost
+#  tasks:
+#    - local_action:
+#        module: ravello_module
+#        app_name: "{{ application_name }}"
+#        state: stopped
+
+# Create blueprint after app is created
+- name: Create blueprint from Ravello staging application
+  tags:
+    - create_blueprint
+  hosts: localhost
+  tasks:
+    - local_action:
+        module: ravello_module
+        app_name: "{{ application_name }}"
+        blueprint_name: "{{ blueprint_name }}"
+        blueprint_description: "Baseline blueprint for {{ application_name }}"
+        state: blueprint

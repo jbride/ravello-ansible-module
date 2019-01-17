@@ -1,5 +1,8 @@
-*/*/workdir/*
-*/workdir/*
-workdir/*
-*.retry
+secrets.yml
+secrets-orig.yml
+main.retry
 app-inventory
+*.id_rsa
+*.id_rsa.pub
+*.template
+*.template.j2
