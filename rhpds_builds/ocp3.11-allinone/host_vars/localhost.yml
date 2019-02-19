@@ -1,0 +1,48 @@
+# instances.yml
+
+instances:
+  - name: workstation
+    remote_user_password: "r3dh4t1!"
+    hostname: [workstation-REPL.rhpds.opentlc.com, bastion.example.com]
+    prefer_physical: true
+    allow_nested: false
+    cpus: 2
+    ram: 4
+    disks:
+      - size: 10
+    nics:
+      - name: eth0
+        ip: 192.168.0.5
+        mac: 2c:ab:cd:ef:00:05
+    services:
+        - protocol: SSH
+          port: 22
+
+  - name: infranode00 
+    hostname: [infranode00.example.com, master00.example.com, infranode00-REPL.generic.opentlc.com]
+    proxy: workstation
+    groups: 
+      - ocp_masters
+      - ocp_infra_nodes
+      - ocp_nodes
+    prefer_physical: true
+    allow_nested: false
+    cpus: 4
+    ram: 64
+    disks:
+      - name: os
+        size: 32
+    nics:
+      - name: eth0
+        ip: 192.168.0.10
+        mac: 2c:ab:cd:ef:00:10
+    services:
+      - name: http
+        protocol: HTTP
+        port: 80
+      - name: https
+        protocol: HTTPS
+        port: 443
+
+subnets:
+  - "192.168.0.0/16"
