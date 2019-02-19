@@ -205,7 +205,8 @@
         state: latest
     - name: Download public-url-change git repo
       command: >
-          git clone https://github.com/jcpowermac/ocp-public-url-change.git
+          git clone https://github.com/rut31337/ocp-public-url-change.git
+          #git clone https://github.com/jcpowermac/ocp-public-url-change.git
       args:
         chdir: /usr/local/share
     - name: Install required ansible galaxy modules

@@ -4,13 +4,13 @@ nodes
 etcd
 
 [masters]
-infranode00.example.com
+clientvm.example.com
 
 [etcd]
-infranode00.example.com
+clientvm.example.com
 
 [nodes]
-infranode00.example.com openshift_node_group_name="node-config-all-in-one"
+clientvm.example.com openshift_node_group_name="node-config-all-in-one"
 
 [all:vars]
 ansible_ssh_private_key_file=/root/.ssh/id_rsa
