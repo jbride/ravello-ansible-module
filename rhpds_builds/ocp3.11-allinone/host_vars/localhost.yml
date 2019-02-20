@@ -18,8 +18,8 @@ instances:
         - protocol: SSH
           port: 22
 
-  - name: infranode00 
-    hostname: [infranode00.example.com, master00.example.com, infranode00-REPL.generic.opentlc.com]
+  - name: clientvm 
+    hostname: [clientvm.example.com, master00.example.com, clientvm-REPL.generic.opentlc.com]
     proxy: workstation
     groups: 
       - ocp_masters
@@ -43,6 +43,9 @@ instances:
       - name: https
         protocol: HTTPS
         port: 443
+      - name: api
+        protocol: TCP
+        port: 8443
 
 subnets:
   - "192.168.0.0/16"

@@ -124,7 +124,7 @@
     - name: Generate htpasswd hash for user_password
       shell: >-
         htpasswd -nb "{{ item }}" "{{new_ocp_password}}"
-      with_sequence: start=1 end=200 format=user%02x
+      with_sequence: start=1 end=200 format=user%02d
 
 - name: Copy SSH key to workstation
   tags:
@@ -206,7 +206,6 @@
     - name: Download public-url-change git repo
       command: >
           git clone https://github.com/rut31337/ocp-public-url-change.git
-          #git clone https://github.com/jcpowermac/ocp-public-url-change.git
       args:
         chdir: /usr/local/share
     - name: Install required ansible galaxy modules
@@ -230,7 +229,7 @@
 - name: Extract OCP master token
   tags:
     - extract_token
-  hosts: infranode00
+  hosts: clientvm
   become: true
   vars_files:
     - workdir/secrets.yml
@@ -256,7 +255,7 @@
   become: true
   tasks:
     - copy:
-        content: "{{ hostvars['infranode00.example.com']['oc_token_output']['stdout'] }}"
+        content: "{{ hostvars['clientvm.example.com']['oc_token_output']['stdout'] }}"
         dest: /root/ocp.token
 
 - name: Fetch kube config to workstation root
@@ -266,7 +265,7 @@
   become: true
   tasks:
     - name: SCP kube config
-      command: scp -r infranode00.example.com:/root/.kube /root/
+      command: scp -r clientvm.example.com:/root/.kube /root/
 
 - name: NFS Server PV Configuration
   tags:

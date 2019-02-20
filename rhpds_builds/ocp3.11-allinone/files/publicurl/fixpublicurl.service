@@ -4,7 +4,7 @@ After=atomic-openshift-master-api.service
 
 [Service]
 # Note the extra-vars for oreg are required or it will fail, they are not used.
-ExecStart=/usr/bin/ansible-playbook -vvi /home/cloud-user/openshift-ansible/inventory /usr/local/share/ocp-public-url-change/main.yml --extra-vars "oreg_auth_user=foo -e oreg_auth_password=foo" --extra-vars "kubevirt=false master_hostname=clientvm"
+ExecStart=/usr/bin/ansible-playbook -vvi /home/cloud-user/openshift-ansible/inventory /usr/local/share/ocp-public-url-change/main.yml --extra-vars "oreg_auth_user=foo -e oreg_auth_password=foo" --extra-vars "kubevirt=false hawkular=false kibana=false master_hostname=clientvm motd_template=motd-allinone.j2"
 Type=simple
 
 [Install]
