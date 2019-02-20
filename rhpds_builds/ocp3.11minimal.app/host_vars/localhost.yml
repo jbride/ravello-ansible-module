@@ -6,8 +6,8 @@ instances:
     hostname: [workstation-REPL.rhpds.opentlc.com, bastion.example.com]
     prefer_physical: true
     allow_nested: false
-    cpus: 2
-    ram: 4
+    cpus: 1
+    ram: 2
     disks:
       - size: 10
     nics:
@@ -18,20 +18,19 @@ instances:
         - protocol: SSH
           port: 22
 
-  - name: clientvm 
-    hostname: [clientvm.example.com, master00.example.com, clientvm-REPL.generic.opentlc.com]
+  - name: master00
+    hostname: [master00.example.com, master00-REPL.generic.opentlc.com]
     proxy: workstation
     groups: 
       - ocp_masters
-      - ocp_infra_nodes
       - ocp_nodes
     prefer_physical: true
     allow_nested: false
     cpus: 4
-    ram: 64
+    ram: 24
     disks:
       - name: os
-        size: 32
+        size: 20
     nics:
       - name: eth0
         ip: 192.168.0.10
@@ -43,9 +42,33 @@ instances:
       - name: https
         protocol: HTTPS
         port: 443
-      - name: api
+      - name: amq
         protocol: TCP
-        port: 8443
+        port: 30001
+
+  - name: infranode00
+    hostname: [infranode00.example.com, infranode00-REPL.generic.opentlc.com]
+    proxy: workstation
+    groups: 
+      - ocp_infra_nodes
+    prefer_physical: true
+    allow_nested: false
+    cpus: 4
+    ram: 8
+    disks:
+      - name: os
+        size: 20
+    nics:
+      - name: eth0
+        ip: 192.168.0.11
+        mac: 2c:ab:cd:ef:00:11
+    services:
+      - name: http
+        protocol: HTTP
+        port: 80
+      - name: https
+        protocol: HTTPS
+        port: 443
 
 subnets:
   - "192.168.0.0/16"
