@@ -313,6 +313,43 @@
     - name: Set wildcard routes
       shell: 'oc set env dc/router ROUTER_ALLOW_WILDCARD_ROUTES=true -n default'
 
+- name: App specific client utils on  workstation
+  hosts: workstation
+  tags:
+    - post_oc
+  become: true
+  tasks:
+    - name: Add javac 
+      yum:
+        name: "java-1.8.0-openjdk-devel"
+        state: latest
+    - name: Get recent version of maven
+      get_url:
+        url: https://www-us.apache.org/dist/maven/maven-3/3.5.4/binaries/apache-maven-3.5.4-bin.tar.gz
+        dest: /root/apache-maven.tar.gz
+      register: r_geturl
+      retries: 5
+      delay: 20
+      until: r_geturl is succeeded
+    - name: Unarchive maven download
+      unarchive:
+        remote_src: yes
+        src: /root/apache-maven.tar.gz
+        dest: /root/
+    - name: Move maven to /usr/local
+      command: mv -f /root/apache-maven-3.5.4 /usr/local
+      ignore_errors: true
+    - name: Cleanup downloaded file
+      file:
+        dest: /root/apache-maven.tar.gz
+        state: absent
+    - name: Download jq-linux64
+      ignore_errors: true
+      get_url:
+        url: https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
+        dest: /usr/local/bin/jq
+        mode: 0775
+
 - name: Project Template
   hosts: master00
   tags:
